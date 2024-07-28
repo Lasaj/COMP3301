@@ -1,0 +1,228 @@
+diff --git a/lib/libc/Symbols.list b/lib/libc/Symbols.list
+index 251760f81..cb626c4a1 100644
+--- a/lib/libc/Symbols.list
++++ b/lib/libc/Symbols.list
+@@ -1780,3 +1780,6 @@ yperr_string
+ ypprot_err
+ _yp_check              /* chpass, passwd, login_chpass */
+ yp_unbind
++
++/* comp3301 */
++add2
+\ No newline at end of file
+diff --git a/lib/libc/sys/Makefile.inc b/lib/libc/sys/Makefile.inc
+index e833a2892..ccb4ceeec 100644
+--- a/lib/libc/sys/Makefile.inc
++++ b/lib/libc/sys/Makefile.inc
+@@ -76,7 +76,8 @@ ASM=  __semctl.o __thrsigdivert.o \
+        sysarch.o sysctl.o \
+        thrkill.o truncate.o \
+        unlink.o unlinkat.o \
+-       unmount.o unveil.o utimensat.o utimes.o utrace.o
++       unmount.o unveil.o utimensat.o utimes.o utrace.o \
++       add2.o
+
+ SRCS+= ${SRCS_${MACHINE_CPU}}
+ .for i in ${SRCS_${MACHINE_CPU}}
+diff --git a/sys/conf/files b/sys/conf/files
+index fd76e9934..46f6c8489 100644
+--- a/sys/conf/files
++++ b/sys/conf/files
+@@ -1097,3 +1097,5 @@ file lib/libz/zutil.c                     ppp_deflate | ipsec | crypto | ddb
+ file lib/libz/zopenbsd.c               ppp_deflate | ipsec | crypto | ddb
+ file lib/libz/trees.c                  ppp_deflate | ipsec | crypto | ddb
+ file lib/libz/compress.c               ppp_deflate | ipsec | crypto | ddb
++
++file kern/kern_add2.c
+\ No newline at end of file
+diff --git a/sys/kern/init_sysent.c b/sys/kern/init_sysent.c
+index c41755fa3..8a3f8d64c 100644
+--- a/sys/kern/init_sysent.c
++++ b/sys/kern/init_sysent.c
+@@ -1,4 +1,4 @@
+-/*     $OpenBSD: init_sysent.c,v 1.274 2024/01/26 18:24:58 mvs Exp $   */
++/*     $OpenBSD$       */
+
+ /*
+  * System call switch table.
+
+@@ -751,5 +751,7 @@ const struct sysent sysent[] = {
+            sys___set_tcb },                    /* 329 = __set_tcb */
+        { 0, 0, SY_NOLOCK | 0,
+            sys___get_tcb },                    /* 330 = __get_tcb */
++       { 4, s(struct sys_add2_args), 0,
++           sys_add2 },                         /* 331 = add2 */
+ };
+
+diff --git a/sys/kern/syscalls.c b/sys/kern/syscalls.c
+index 646ad4458..3d7949b93 100644
+--- a/sys/kern/syscalls.c
++++ b/sys/kern/syscalls.c
+@@ -1,4 +1,4 @@
+-/*     $OpenBSD: syscalls.c,v 1.272 2024/01/26 18:24:58 mvs Exp $      */
++/*     $OpenBSD$       */
+
+ /*
+  * System call names.
+@@ -393,4 +393,5 @@ const char *const syscallnames[] = {
+        "#328 (obsolete __tfork51)",            /* 328 = obsolete __tfork51 */
+        "__set_tcb",                    /* 329 = __set_tcb */
+        "__get_tcb",                    /* 330 = __get_tcb */
++       "add2",                 /* 331 = add2 */
+ };
+diff --git a/sys/kern/syscalls.master b/sys/kern/syscalls.master
+index 0400b8ea8..fa5436353 100644
+--- a/sys/kern/syscalls.master
++++ b/sys/kern/syscalls.master
+@@ -567,3 +567,4 @@
+ 328    OBSOL           __tfork51
+ 329    STD NOLOCK      { void sys___set_tcb(void *tcb); }
+ 330    STD NOLOCK      { void *sys___get_tcb(void); }
++331    STD             { int sys_add2(uint mode, unit a, unit b, uint *result); }
+diff --git a/sys/sys/syscall.h b/sys/sys/syscall.h
+index 19f7875a9..0d6bf0f0d 100644
+--- a/sys/sys/syscall.h
++++ b/sys/sys/syscall.h
+@@ -1,4 +1,4 @@
+-/*     $OpenBSD: syscall.h,v 1.271 2024/01/26 18:24:58 mvs Exp $       */
++/*     $OpenBSD$       */
+
+ /*
+  * System call numbers.
+@@ -727,4 +727,7 @@
+ /* syscall: "__get_tcb" ret: "void *" args: */
+ #define        SYS___get_tcb   330
+
+-#define        SYS_MAXSYSCALL  331
+
++/* syscall: "add2" ret: "int" args: "uint" "unit" "unit" "uint *" */
++#define        SYS_add2        331
++
++#define        SYS_MAXSYSCALL  332
+diff --git a/sys/sys/syscallargs.h b/sys/sys/syscallargs.h
+index c8c850434..1a33e5abd 100644
+--- a/sys/sys/syscallargs.h
++++ b/sys/sys/syscallargs.h
+@@ -1,4 +1,4 @@
+-/*     $OpenBSD: syscallargs.h,v 1.274 2024/01/26 18:24:58 mvs Exp $   */
++/*     $OpenBSD$       */
+
+ /*
+  * System call argument lists.
+@@ -1159,6 +1159,13 @@ struct sys___set_tcb_args {
+        syscallarg(void *) tcb;
+ };
+
++struct sys_add2_args {
++       syscallarg(uint) mode;
++       syscallarg(unit) a;
++       syscallarg(unit) b;
++       syscallarg(uint *) result;
++};
++
+ /*
+  * System call prototypes.
+  */
+@@ -1420,3 +1427,4 @@ int       sys_symlinkat(struct proc *, void *, register_t *);
+ int    sys_unlinkat(struct proc *, void *, register_t *);
+ int    sys___set_tcb(struct proc *, void *, register_t *);
+ int    sys___get_tcb(struct proc *, void *, register_t *);
++int    sys_add2(struct proc *, void *, register_t *);
+diff --git a/usr.bin/foobar/Makefile b/usr.bin/foobar/Makefile
+new file mode 100644
+index 000000000..1205ec31c
+--- /dev/null
++++ b/usr.bin/foobar/Makefile
+@@ -0,0 +1,5 @@
++PROG=  foobar
++SRCS=  foobar.c
++MAN=
++
++.include <bsd.prog.mk>
+diff --git a/usr.bin/foobar/foobar.c b/usr.bin/foobar/foobar.c
+new file mode 100644
+index 000000000..64c12195b
+--- /dev/null
+
++++ b/usr.bin/foobar/foobar.c
+@@ -0,0 +1,63 @@
++#include <stdio.h>
++#include <stdlib.h>
++#include <unistd.h>
++#include <string.h>
++#include <stdint.h>
++#include <err.h>
++
++static void
++usage(void)
++{
++       /* TODO: add your usage message here */
++       fprintf(stderr, "usage: foobar [-s] A B\n");
++       exit(1);
++}
++
++int
++main(int argc, char *argv[])
++{
++       enum { ADD, SUB } mode = ADD;
++
++       /* TODO: process commandline options */
++       int ch;
++
++       while ((ch = getopt(argc, argv, "s")) != -1) {
++               switch (ch) {
++               case 's':
++                       mode = SUB;
++                       break;
++               default:
++                       usage();
++               }
++       }
++
++       argc -= optind;
++       argv += optind;
++
++       if (argc != 2)
++               usage();
++
++
++       /* TODO: parse numbers */
++       uint32_t a, b, result;
++       const char *errstr;
++
++       a = strtonum(argv[0], 0, UINT32_MAX, &errstr);
++       if (errstr != NULL)
+
++               errx(1, "A is not a number %s, %s", errstr, argv[0]);
++       b = strtonum(argv[1], 0, UINT32_MAX, &errstr);
++       if (errstr != NULL)
++               errx(1, "B is not a number %s, %s", errstr, argv[1]);
++
++
++       /* TODO: add/subtract them and print it out */
++       if (mode == ADD) {
++               result = a + b;
++       } else {
++               result = a - b;
++       }
++
++       printf("%u\n", result);
++
++       return (0);
++}
+diff --git a/usr.bin/foobar/foobar.core b/usr.bin/foobar/foobar.core
+new file mode 100644
+index 000000000..ce01efc58
+Binary files /dev/null and b/usr.bin/foobar/foobar.core differ
+diff --git a/usr.bin/hexdump/hexsyntax.c b/usr.bin/hexdump/hexsyntax.c
+index 0af873473..b1d0fedb3 100644
+--- a/usr.bin/hexdump/hexsyntax.c
++++ b/usr.bin/hexdump/hexsyntax.c
+@@ -127,6 +127,7 @@ static __dead void
+ usage(void)
+ {
+        extern char *__progname;
++       fprintf(stderr, "Rikk kikks\n");
+        fprintf(stderr, "usage: %s [-bCcdovx] [-e format_string] "
+                        "[-f format_file] [-n length]\n"
+                        "\t[-s offset] [file ...]\n", __progname);
